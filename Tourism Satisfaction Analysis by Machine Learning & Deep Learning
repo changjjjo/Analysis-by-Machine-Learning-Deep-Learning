@@ -1,0 +1,255 @@
+"""
+중국인의 한국관광 만족을 위한 탐색적 연구
+"""
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import codecs
+import seaborn as sns
+
+df_trip = pd.read_csv('16_C.csv')
+df_trip_copy = pd.read_csv('16_C.csv')
+df_shp = pd.read_csv('KCTI_CONTEST_17_SEND.txt',sep='\t',encoding='euc-kr')
+df_shp_copy = pd.read_csv('KCTI_CONTEST_17_SEND.txt',sep='\t',encoding='euc-kr')
+
+#########################[00카드 소비자료 EDA]#########################
+from matplotlib import font_manager, rc
+font_name = font_manager.FontProperties(fname="c:/Windows/Fonts/malgun.ttf").get_name()
+rc('font', family=font_name)
+
+plt.style.use('ggplot')
+df_shp.columns 
+df_shp = df_shp[df_shp.COUNTRY=='CN'] #214,679명
+df_shp.index = pd.RangeIndex(len(df_shp.index))#인덱스 재설정
+df_shp = df_shp.drop(['MCT_ID','DSR_NM', 'BRG_NM','NEW_TAMT','MCT_CODE','VLG_NM','COUNTRY'],1)
+
+
+#세부업종구분
+plt.figure(figsize=(10,5))
+sns.countplot('MCT_CODE_NM',hue='YEAR',data=df_shp)
+plt.xlabel('소비 세부업종')
+plt.title('세부업종:연도')
+plt.xticks(rotation=90)
+
+#업종구분
+sns.countplot('MCT_GROUP',hue='YEAR',data=df_shp)
+plt.xlabel('소비 업종')
+plt.title("소비업종:연도")
+
+#지역구분
+sns.countplot('AREA_GB',hue='YEAR',data=df_shp)
+plt.xlabel('소비지역')
+plt.title('소비지역:연도')
+plt.xticks(rotation=30)
+
+sns.countplot('AREA_GB',hue='SEX',data=df_shp)
+plt.xlabel('소비지역')
+plt.title('소비지역:연도')
+plt.xticks(rotation=30)
+
+#시간대구분
+sns.countplot('TIME',hue='YEAR',data=df_shp)
+plt.xlabel('소비시간 구분')
+plt.title('소비시간:연도')
+
+#########################[2차 설문데이터 EDA]#########################
+#성별
+f,ax=plt.subplots(1,2,figsize=(12,6))
+
+sns.countplot('sex',data=df_trip)
+plt.title('성별')
+plt.xticks(np.arange(2), ('남성', '여성'))
+plt.show()
+
+
+#교육수준:성별
+sns.countplot('edu',hue='sex',data=df_trip)
+plt.title('교육수준:성별')
+plt.xticks(np.arange(5), ('고졸미만', '대학교', '대학원 이상', '기타', '무응답'))
+plt.xlabel('교육수준')
+
+#나이:성별
+sns.countplot('age',hue='sex',data=df_trip)
+plt.title('나이:성별')
+plt.xticks(np.arange(7), ('15~20세', '21~30세', '31~40세', '41~50세', '51~60세', '61~70세','무응답'))
+plt.xlabel('나이')
+
+#전반적만족도
+plt.subplot(121)
+sns.countplot('q13',data=df_trip)
+plt.title('전반적만족도')
+plt.xticks(np.arange(4), ('불만족', '보통', '만족', '매우 만족'))
+plt.xlabel('전반적만족도')
+plt.subplot(122)
+sns.countplot('q13',hue='sex',data=df_trip)
+plt.title('전반적만족도:성별')
+plt.xticks(np.arange(4), ('불만족', '보통', '만족', '매우 만족'))
+plt.xlabel('전반적만족도:성별')
+
+#3년내 재방문 의사
+plt.subplot(121)
+sns.countplot('q14',data=df_trip)
+plt.title('3년 내 재방문 의사')
+plt.xticks(np.arange(4), ('그렇지 않다', '보통', '그렇다', '매우 그렇다'))
+plt.xlabel('3년 내 재방문 의사')
+
+plt.subplot(122)
+sns.countplot('q14',hue='sex',data=df_trip)
+plt.title('3년 내 재방문 의사:성별')
+plt.xticks(np.arange(4), ('그렇지 않다', '보통', '그렇다', '매우 그렇다'))
+plt.xlabel('3년 내 재방문 의사')
+
+#재방문여부
+f,ax=plt.subplots(1,2)
+df_trip['q1'].value_counts().plot.pie(explode=[0,0.1],autopct='%1.1f%%',ax=ax[0],shadow=True)
+ax[0].set_title('재방문여부')
+ax[0].set_ylabel('')
+
+sns.countplot('q1',data=df_trip,ax=ax[1])
+ax[1].set_title('재방문여부')
+plt.xlabel('재방문여부')
+plt.xticks(np.arange(2), ('첫방', '재방문'))
+plt.show()
+
+#여행형태
+sns.countplot('q17',data=df_trip)
+plt.title('여행형태')
+plt.xticks(np.arange(3), ('개별여행', '단체여행', 'Air-tel Tour'))
+plt.xlabel('여행형태')
+
+
+from sklearn.preprocessing import LabelEncoder
+le =LabelEncoder()
+df_trip.q1 = le.fit_transform(df_trip['q1']) #0은 첫방문 1은 재방문 
+
+df_df = df_trip[['q1','q13','q13a01','q13a02','q13a03','q13a04','q13a05','q13a06','q13a07','q13a08','q13a09','q13a10']]
+df_df.isnull().sum()
+
+x= df_df.drop(['q1'],1)
+y= df_df['q1']
+
+print('평균 :',round(df_df['q1'].mean(),3))
+print('오차 :',round(df_df['q1'].std(),3))
+
+#########################[데이터 변환]#########################
+x_log = np.log(x)
+
+#########################[데이터 split]#########################
+from sklearn.model_selection import cross_val_score
+from sklearn import model_selection
+from sklearn.model_selection import train_test_split
+x_train, x_test, y_train, y_test = model_selection.train_test_split(x_log,y,test_size = .3, random_state = 123)
+
+#########################[LogisticRegression]#########################
+#LogisticRegression
+from sklearn.linear_model import LogisticRegression
+logreg = LogisticRegression()
+logreg.fit(x_train, y_train)
+logreg_pred = logreg.predict(x_test)
+
+logreg_cv = cross_val_score(logreg, x_test, y_test, cv = 5)
+
+#########################[머신러닝]#########################
+#Decision Tree
+from sklearn.tree import DecisionTreeClassifier
+dtree = DecisionTreeClassifier(max_depth =5)
+dtree.fit(x_train,y_train)
+dtree_pred = dtree.predict(x_test)
+
+dtree_cv = cross_val_score(dtree, x_test, y_test, cv = 5)
+
+#RandomForest
+from sklearn.ensemble import RandomForestClassifier #RandomForest방법을 쓰는데 변수가 범주형일때 사용
+rf = RandomForestClassifier(n_estimators = 500, max_depth = 5)
+rf.fit(x_train,y_train)
+rf_pred = rf.predict(x_test)
+
+rf_cv = cross_val_score(rf, x_test, y_test, cv = 5)
+
+#K-NN
+from sklearn.neighbors import KNeighborsClassifier
+knn = KNeighborsClassifier(n_neighbors=24)
+knn.fit(x_train, y_train)
+knn_pred = knn.predict(x_test)
+
+knn_cv = cross_val_score(knn, x_test, y_test, cv = 5)
+
+#SVM
+from sklearn.svm import SVC
+svm = SVC(gamma='auto')
+svm.fit(x_train, y_train)
+svm_pred = svm.predict(x_test)
+ 
+svm_cv = cross_val_score(svm, x_test, y_test, cv = 5)
+
+#정확도확인
+print('\t\t\t','MEAN','\t     ','STD')
+print('LogisticRegression =\t',logreg_cv.mean().round(4),dtree_cv.std().round(4))
+print('Decision Tree =\t\t',dtree_cv.mean().round(4),dtree_cv.std().round(4))
+print('Random Forest = \t',rf_cv.mean().round(4),rf_cv.std().round(4))
+print('K-NN =\t\t\t',knn_cv.mean().round(4),knn_cv.std().round(4))
+print('Support Vector Machine =',svm_cv.mean().round(4),svm_cv.std().round(4))
+
+
+
+#########################[f_regression 변수추천]#########################
+#f_regression 종속변수의 영향을 많이끼치는 독립변수 추천
+from sklearn.linear_model import LinearRegression
+from sklearn.feature_selection import SelectKBest,f_regression
+
+model = SelectKBest(score_func=f_regression, k=5 )
+results = model.fit(x_log,y)
+score = pd.DataFrame(results.scores_, index = x.columns) #중요한 변수에 높은점수를 준다
+results.pvalues_
+score.sort_values(by=0,ascending = False)
+
+#########################[상관관계]#########################
+import seaborn as sns
+
+corrMatt = df_df.corr()
+mask = np.array(corrMatt)
+mask[np.tril_indices_from(mask)] = False
+fig,ax= plt.subplots()
+fig.set_size_inches(20,10)
+sns.heatmap(corrMatt, mask=mask,vmax=.8, square=True,annot=True)
+
+
+#########################[딥러닝]#########################
+import tensorflow as tf
+import keras
+from keras.models import Sequential
+from keras.layers.core import Dense
+np.random.seed(1234)
+
+#모형구성하기
+model = Sequential()
+model.add(Dense(124, activation = 'relu', input_shape = (11,)))
+model.add(Dense(58, activation = 'relu'))
+model.add(Dense(19, activation = 'relu'))
+model.add(Dense(8, activation = 'relu'))
+model.add(Dense(4, activation = 'relu'))
+model.add(Dense(1, activation = 'sigmoid'))
+model.compile(loss = 'mse', optimizer = 'Adam', metrics =['accuracy'])
+model.summary()
+
+#model_to_dot 모델 구조 확인
+from IPython.display import SVG
+from keras.utils.vis_utils import model_to_dot
+import pydot
+
+SVG(model_to_dot(model, show_shapes=True).create(prog='dot', format='svg'))
+
+#모델 확인
+hist = model.fit(x_train, y_train, validation_data=(x_test, y_test), epochs=100)
+
+plt.figure(figsize=(12,8))
+plt.plot(hist.history['loss'])
+plt.plot(hist.history['val_loss'])
+plt.plot(hist.history['acc'])
+plt.plot(hist.history['val_acc'])
+plt.legend(['loss','val_loss', 'acc','val_acc'])
+plt.show()
+
+#모형 정확도 확인
+loss,accuracy=model.evaluate(x_test,y_test)
+print('Accuracy = {:.4f}'.format(accuracy))
